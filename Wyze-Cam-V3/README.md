@@ -85,7 +85,10 @@ Once I connected the pins to a UART to USB converter (very cheap piece of equipm
 
 ![](assets/img4.png)
 
-![Bootloader messages on UART](assets/wyze_boot.mp4)
+<!--![Bootloader messages on UART](assets/wyze_boot.mp4)-->
+[Bootloader messages on UART](https://github.com/user-attachments/assets/655c739f-a51f-4fd9-aaad-3da7f2bb93b6)
+
+
 
 In the logs, we can see the system booting and the different services of the camera starting up. We can even see the SSID of the Wifi network if connecting to, or get info on the linux system used :
 
@@ -150,7 +153,8 @@ The pin SO (Signal Out) and VSS (GND) can be found on the same side of the chip.
 
 To glitch, we can use test probes/claws to avoid aving to solder to the chip (the format of the chip allow it) :
 
-![Setting up probes for glitching](assets/glitching_setup.mp4)
+<!--![Setting up probes for glitching](assets/glitching_setup.mp4)-->
+[Setting up probes for glitching](https://github.com/user-attachments/assets/1a02b75b-1c36-48be-badc-6e605f0cfc87)
 
 Then we can simply make contact between the two wires manually, or using a switch / button :
 
@@ -165,7 +169,8 @@ Hit any key to stop autoboot:  0
 
 The glitching in action :
 
-![glitching attack](assets/glitching.mp4)
+<!--![glitching in action](assets/glitching.mp4)-->
+[Glitching in action](https://github.com/user-attachments/assets/f6d14471-2ae4-4031-b510-ad0a4001d506)
 
 And it work !
 We can see the error message :
@@ -264,7 +269,8 @@ sf read 0x80000000 0x0 0x40000;md.b 0x80000000 0x40000;sf read 0x80000000 0x4000
 
 Then simply open a UART shell (with logs to a specific file) and run the command (take a few hours) :
 
-![Dumping with oneliner](assets/dumping.mp4)
+<!--![Dumping with oneliner](assets/dumping.mp4)-->
+[Dumping with oneliner](https://github.com/user-attachments/assets/735d2f93-94d9-497f-a3fa-db614cc0a961)
 
 And once the dump is over, I created another python script [translate.py](utils/translate.py) :
 
@@ -425,7 +431,8 @@ $ flashrom -w newfw.bin -p ch341a_spi -c "GD25B128B/GD25Q128B"
 
 Once the new firmware is in place, I powered up the camera and got the root shell I waited so long for :
 
-![rooting the camera](assets/root_shell.mp4)
+<!--![rooting the camera](assets/root_shell.mp4)-->
+[Rooting the camere](https://github.com/user-attachments/assets/07af444b-7c9d-4ae7-8be1-8e4e5a129d3b)
 
 With a root shell, I was now able to see the running process and what's happening in the camera while it's in use.
 
