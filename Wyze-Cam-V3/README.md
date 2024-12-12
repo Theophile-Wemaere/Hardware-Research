@@ -234,18 +234,18 @@ md.b 0x80000000 0x40000
 	-`0x40000` : size of the data to read 
 
 Then to load the following partition just take :
-$$
+```math
 start\_part_n = start\_part_{n-1} + size\_part_{n-1}  
-$$
+```
 to get the start of the next partition, and so on.
 So for example to get the start of the partition `kernel` (after `boot`) :
-$$
+```math
 	start\_kernel = start\_boot + size\_boot = 0\text{x}0 + 0\text{x}40000 = 0\text{x}40000
-$$
+```
 And for the third partition (`rootfs`) :
-$$
+```math
 	start\_kernel = start\_kernel + size\_kernel = 0\text{x}40000 + 0\text{x}1F0000 = 0\text{x}230000
-$$
+```
 and so on...
 
 With this in mind, we can easily dump partition and recreate them with a python script.
