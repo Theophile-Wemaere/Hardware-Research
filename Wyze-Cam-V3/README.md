@@ -77,7 +77,7 @@ Could that be UART ? Well, some peoples on the internet already confirmed it was
 To connect to UART, I used `picocom` which is a easy to use terminal emulator, perfect for UART connection and analysis, but other tools can do that such as `screen`, `minicom`,...
 
 ```shell
-$ picocom -b 115200 /dev/ttyUSB0 
+picocom -b 115200 /dev/ttyUSB0 
 ```
 Here the `-b` option is used to specify the baudrate, which is the speed used for the communication. The most standard value is `115200` but in case of negative results, it's possible to test other standard baudrate of calculate it using a logic analyzer or an oscilloscope.
 
@@ -363,7 +363,7 @@ As we saw for the glitching attack on the flash chip, it's easily accessible so 
 
 Once the clip is in place, I used the tool `flashrom` to dump the flash memory :
 ```shell
-$ flashrom -r output.bin -p ch341a_spi -c "GD25B128B/GD25Q128B"
+flashrom -r output.bin -p ch341a_spi -c "GD25B128B/GD25Q128B"
 ```
 ![](assets/img18.png)
 
@@ -386,11 +386,11 @@ This can be done with `binwalk` and `dd` :
 From various test or just by guessing from sizes, the root filesystem is the one starting from `2293760` with a size of `2881448` bytes.
 We can extract only this portion with :
 ```shell
-$ dd if=output.bin of=rootfs.bin bs=1 skip=2293760 count=2881448
+dd if=output.bin of=rootfs.bin bs=1 skip=2293760 count=2881448
 ```
 and then extract the filesystem with :
 ```shell
-$ unsquashfs rootfs.bin
+unsquashfs rootfs.bin
 ```
 ![](assets/img20.png)
 
@@ -416,17 +416,17 @@ console::respawn:/bin/sh
 Whatever you decide, once the change as been made, we need to repack the filesystem.
 This can be done with :
 ```shell
-$ mksquashfs squashfs-root/ newrootfs.bin -comp xz
+mksquashfs squashfs-root/ newrootfs.bin -comp xz
 ```
 
 And then rewrite the newly created rootfs to a new firmware :
 ```shell
-$ cp output.bin newfw.bin # always keep the original in case
-$ dd if=newrootfs.bin of=newfw.bin bs=1 seek=2293760 count=2881448 conv=notrunc
+cp output.bin newfw.bin # always keep the original in case
+dd if=newrootfs.bin of=newfw.bin bs=1 seek=2293760 count=2881448 conv=notrunc
 ```
 Then you just need to write the new firmware and that should be it :
 ```shell
-$ flashrom -w newfw.bin -p ch341a_spi -c "GD25B128B/GD25Q128B"
+flashrom -w newfw.bin -p ch341a_spi -c "GD25B128B/GD25Q128B"
 ```
 
 Once the new firmware is in place, I powered up the camera and got the root shell I waited so long for :
@@ -443,4 +443,115 @@ I found a lot of interesting things in the `/tmp` directory, normally not availa
 - a file with a lot of certificate that I understood later is used to store allowed SSL certificate for HTTPS. From that, I was able to install a proxy and capture the traffic of the camera
 ## Installing a proxy to monitor HTTPS traffic 
 
-*report writing in progress*
+Now that the device is rooted and we access the internal filesystem, one more thing to do is find a way to intercept the communication between the device and the remote server in the cloud.
+
+When looking at the init scripts, I found some interesting lines in `/etc/init.d/rcS `: 
+```shell
+<SNIP>
+# Set Global Environment
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin
+export PATH=/system/bin:$PATH
+export LD_LIBRARY_PATH=/system/lib
+export LD_LIBRARY_PATH=/thirdlib:$LD_LIBRARY_PATH
+<SNIP>
+```
+
+Those are the environment variables for the different process running on the camera.
+We can use this script to add some variables to help us intercept the traffic.
+
+In Linux system, if the variables `HTTP_PROXY` or `HTTPS_PROXY` are set, traffic should be redirected to the given proxy. That's the simplest way to add proxy routing in a linux system.
+
+For easier testing purposes, I modified the `/etc/init.d/rcS` script to try and load another script located in `/configs/` so I was able to modify the parameters in real time instead of having to re-flash the firmware each time (`cfg` partition is the only writable partition).
+
+To do so, I modified the init script by adding the following line :
+```shell
+# Mount configs partition
+mount -t jffs2 /dev/mtdblock6 /configs
+
+if [[ -f /configs/a.sh ]]; then source /configs/a.sh; fi
+```
+The last line check if the script `a.sh` exists in the cfg partition, and run it if it is found.
+- The check must be done **after** the `cfg` partition is mounted on the filesystem (like here)
+- I used `source /configs/a.sh` instead of just `sh /configs/a.sh` to be able to inherit of any environment variables set in `a.sh`.
+
+Once I modified the init script and re-flashed the firmware (as shown before), I could add the script `a.sh` in `/configs/` (using `vi`) :
+
+![](assets/img22.png)
+
+And if everything has been done correctly, the script should execute at camera initialization :
+
+![](assets/init_script.mp4)
+
+Now to go back to the initial goal : intercepting the HTTP traffic.
+As said before, we can use the `HTTP_PROXY` and `HTTPS_PROXY` variables and set them in `a.sh` so any process launched at initialization inherent them and use them :
+
+![](assets/img23.png)
+
+On my computer (at `192.168.1.167`), I setup [BurpSuite](https://portswigger.net/burp) with the proxy listening on port `8081` on all interfaces :
+
+![](assets/img24.png)
+
+And after rebooting the camera, I should have the traffic routed to my BurpProxy.
+One problem however... the device use HTTPS for most of the requests.
+And the one of the main goal of HTTPS is to avoid man in the middle, like I'm trying to do. And as the BurpProxy use a non trusted certificate authority (CA), no HTTPS requests will be sent to my proxy :
+
+![](assets/img25.png)
+
+So, to be able to intercept HTTPS traffic, we need to add Burp CA to the list of trusted CA in the devices.
+
+From my research in the device, I discovered that the list of certificates used by the devices (for the remote servers) and generated at runtime in the file `/tmp/cacert.pem` :
+
+![](assets/img26.png)
+
+Inside this file are 138 certificates :
+
+![](assets/img27.png)
+
+I know the file `/tmp/cacert.pem` is generated by one of the Wyze binary at runtime, so using the previously created `a.sh` script, I can launch a function that :
+- check if the file `/tmp/cacert.pem` has been generated
+- once the file has been found, inject the BurpSuite certificate inside it
+
+To get the BurpSuite certificate as a PEM file, we can do the following commands :
+```shell
+# get the DER certificate on the proxy address
+wget http://192.168.1.167:8081/cert -O certificate.der
+# convert it to PEM with openssl
+openssl x509 -inform DER -in certificate.der -out burp.pem 
+```
+
+Then, transfer it to the device inside the `/configs` folder, and modify the `a.sh` script :
+```shell
+check_cacert() {
+    while true
+    do
+      if [[ -f /tmp/cacert.pem ]]
+      then
+          echo '************************************** file has been found'
+          cat /configs/burp.pem >> /tmp/cacert.pem
+          exit
+      fi
+      sleep 0.1
+    done
+}
+
+echo "********************* PWN3D **********************"
+export http_proxy="http://192.168.1.167:8081"
+export https_proxy="http://192.168.1.167:8081"
+
+check_cacert &
+# check if the env variables have been set
+env
+```
+
+The function `check_cacert` check if the file `/tmp/cacert` has been generated, and sleep 10 milliseconds if not, else it inject the burp certificate inside it.
+
+Once everything has been setup as shown, the device can be rebooted and if everything has been done correctly, the BurpSuite proxy should receive incoming requests as the CA has been added to device list of trusted CA :
+
+![CA injection at boot](assets/ca_inject.mp4)
+
+We can see that the `HTTP_PROXY` and `HTTPS_PROXY` variables has been set correctly, and the certificate has been injected correctly inside the device trusted CA list.
+With that done, the BurpProxy should be receiving HTTPS from the device to the remote API :
+
+![](assets/img28.png)
+
+With this setup (root shell and HTTPS proxy), I can now explore in depth how the camera work. That's all for this writeup !
