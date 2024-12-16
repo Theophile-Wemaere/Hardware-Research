@@ -85,7 +85,7 @@ Once I connected the pins to a UART to USB converter (very cheap piece of equipm
 
 ![](assets/img4.png)
 
-<!--![Bootloader messages on UART](assets/wyze_boot.mp4)-->
+<!--![Bootloader messages on UART](assets/wyze_boot.webm)-->
 [Bootloader messages on UART](https://github.com/user-attachments/assets/655c739f-a51f-4fd9-aaad-3da7f2bb93b6)
 
 
@@ -153,7 +153,7 @@ The pin SO (Signal Out) and VSS (GND) can be found on the same side of the chip.
 
 To glitch, we can use test probes/claws to avoid aving to solder to the chip (the format of the chip allow it) :
 
-<!--![Setting up probes for glitching](assets/glitching_setup.mp4)-->
+<!--![Setting up probes for glitching](assets/glitching_setup.webm)-->
 [Setting up probes for glitching](https://github.com/user-attachments/assets/1a02b75b-1c36-48be-badc-6e605f0cfc87)
 
 Then we can simply make contact between the two wires manually, or using a switch / button :
@@ -169,7 +169,7 @@ Hit any key to stop autoboot:  0
 
 The glitching in action :
 
-<!--![glitching in action](assets/glitching.mp4)-->
+<!--![glitching in action](assets/glitching.webm)-->
 [Glitching in action](https://github.com/user-attachments/assets/f6d14471-2ae4-4031-b510-ad0a4001d506)
 
 And it work !
@@ -269,7 +269,7 @@ sf read 0x80000000 0x0 0x40000;md.b 0x80000000 0x40000;sf read 0x80000000 0x4000
 
 Then simply open a UART shell (with logs to a specific file) and run the command (take a few hours) :
 
-<!--![Dumping with oneliner](assets/dumping.mp4)-->
+<!--![Dumping with oneliner](assets/dumping.webm)-->
 [Dumping with oneliner](https://github.com/user-attachments/assets/735d2f93-94d9-497f-a3fa-db614cc0a961)
 
 And once the dump is over, I created another python script [translate.py](utils/translate.py) :
@@ -431,7 +431,7 @@ flashrom -w newfw.bin -p ch341a_spi -c "GD25B128B/GD25Q128B"
 
 Once the new firmware is in place, I powered up the camera and got the root shell I waited so long for :
 
-<!--![rooting the camera](assets/root_shell.mp4)-->
+<!--![rooting the camera](assets/root_shell.webm)-->
 [Rooting the camere](https://github.com/user-attachments/assets/07af444b-7c9d-4ae7-8be1-8e4e5a129d3b)
 
 With a root shell, I was now able to see the running process and what's happening in the camera while it's in use.
@@ -480,7 +480,7 @@ Once I modified the init script and re-flashed the firmware (as shown before), I
 
 And if everything has been done correctly, the script should execute at camera initialization :
 
-![](assets/init_script.mp4)
+![](assets/init_script.webm)
 
 Now to go back to the initial goal : intercepting the HTTP traffic.
 As said before, we can use the `HTTP_PROXY` and `HTTPS_PROXY` variables and set them in `a.sh` so any process launched at initialization inherent them and use them :
@@ -547,7 +547,7 @@ The function `check_cacert` check if the file `/tmp/cacert` has been generated, 
 
 Once everything has been setup as shown, the device can be rebooted and if everything has been done correctly, the BurpSuite proxy should receive incoming requests as the CA has been added to device list of trusted CA :
 
-![CA injection at boot](assets/ca_inject.mp4)
+![CA injection at boot](assets/ca_inject.webm)
 
 We can see that the `HTTP_PROXY` and `HTTPS_PROXY` variables has been set correctly, and the certificate has been injected correctly inside the device trusted CA list.
 With that done, the BurpProxy should be receiving HTTPS from the device to the remote API :
